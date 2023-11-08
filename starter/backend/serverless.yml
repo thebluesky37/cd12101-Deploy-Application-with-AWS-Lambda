@@ -6,6 +6,7 @@ plugins:
   - serverless-webpack
   - serverless-iam-roles-per-function
   - serverless-plugin-tracing
+  - serverless-reqvalidator-plugin
 
 provider:
   name: aws
@@ -29,6 +30,14 @@ provider:
     IMAGES_S3_BUCKET: udacity-serverless-todo-images-278213192584-${self:provider.stage}
     SIGNED_URL_EXPIRATION: "300"
 
+custom:
+  reqvalidator:
+    schemas: # Define request schemas here
+      - requestValidatorName: validateCreateTodo
+        schema: ${file(src/schemas/create-todo-request.json)}
+      - requestValidatorName: validateUpdateTodo
+        schema: ${file(src/schemas/update-todo-request.json)}
+
 functions:
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
@@ -38,6 +47,7 @@ functions:
           - "xray:PutTraceSegments"
           - "xray:PutTelemetryRecords"
         Resource: "*"
+    tracing: Active
 
   GetTodos:
     handler: src/lambda/http/getTodos.handler
@@ -69,6 +79,8 @@ functions:
           path: /todos
           authorizer:
             name: customAuthorizer
+          request:
+            validatorName: validateCreateTodo
 
     iamRoleStatements:
       - Effect: Allow
@@ -85,12 +97,13 @@ functions:
     handler: src/lambda/http/updateTodo.handler
     events:
       - httpApi:
-          method: PUT
+          method: PATCH
           cors: true
           path: /todos/{todoId}
           authorizer:
             name: customAuthorizer
-
+          request:
+            validatorName: validateUpdateTodo
     iamRoleStatements:
       - Effect: Allow
         Action:
